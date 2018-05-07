@@ -4,19 +4,7 @@ author: "Sharon Howard"
 date: "17 April 2018"
 output:
   html_document:
-    css: /css/mindseye.css
-    self_contained: false
-    template: mindseye_template.html
-    theme: null
-    toc: yes
-    includes:
-      before_body: ../header.html
-      after_body: ../footer.html
-keywords: 
-- R
-- OBO
-- ggplot
-ihmefilename: "201804_obo_1"
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -26,50 +14,31 @@ knitr::opts_chunk$set(echo = TRUE, out.width="90%", fig.align='center', dpi=150)
 
 ```{r, include=FALSE}
 
+## This RMarkdown code has been used to generate material posted at mindseye.sharonhoward.org
+
 ## About this file ####
 
-## This RMarkdown file has been used to generate visualisations and HTML posted at mindseye.sharonhoward.org
-
-## In order to reproduce the output you'll need, in addition to this file:
+## This is an *RMarkdown* file. It's written in a mix of markdown and R code.
+## In order to reproduce the output you'll need, in addition to the file itself:
 ## * R and RStudio installed on your computer (https://www.rstudio.com/)
-## * the R packages listed in the #load packages# section below
-## * the data file(s) in the #get data# section
+## * R packages listed in the #load packages# section below
+## * the data file(s) in the #get data# section; most often these will be in the same folder as the code file, but they might sometimes be located elsewhere on the internet and the code will include instructions to fetch/download them
 
-## Ensure that the data file is in the right location relative to this file
-## If you've downloaded and unzipped or cloned the repository from github, everything should already be in the right place, with the file/folder structure like this:
+## If you have no idea what the above means but want to learn, start with the guides at https://www.rstudio.com 
 
-## ihme-master/
-## ├─ data/   [data files folder]
-## ├─ posts/  [code files folder]
-## ├─ readme.md
-
-## A note on the YAML metadata block at the top of this file ##
-
-## This is primarily for any RStudio users who want to convert the Rmarkdown to HTML
-## in the output: options I specify a custom template, CSS and included files: these will cause RStudio's Knit function to fail!
-## So if you want to be able to Knit the file, you *must* delete the following lines:
-
-##     css: ../css/mindseye.css
-##     template: mindseye_template.html
-##     includes:
-##      before_body: ../header.html
-##      after_body: ../footer.html
-
-## and it's probably a good idea to delete these as well:
-##     theme: null
-##     self_contained: false [ymmv]
-
-## More on the YAML:
-
-## *ihmefilename* has been added for my own use. You can ignore it or delete it if you want.
-
-## If *datalicenceurl* is present it specifies a licence for the *data* that differs from my usual CC-BY-SA licence; there should be further information in the text body. 
-
-## Whatever the status of the data, this Rmarkdown file is licensed under a [Creative Commons Attribution 4.0 licence (CC BY-SA)](http://creativecommons.org/licenses/by/4.0/). 
-#Feel free to re-use, hack, chop and generally muck around with it.
+## There is also a nice suite of R tutorials designed for historians at https://programminghistorian.org/ eg https://programminghistorian.org/lessons/data_wrangling_and_management_in_R
 
 ## I've commented the code quite a lot, to try and document what on earth I thought I was up to (this is for my benefit too, whenever I come back to the code later), but inevitably not everything will be commented in detail
-## Don't forget you can search in the Console for documentation for R packages and functions by typing the name of the package/function preceded by ? 
+## Don't forget you can search in the RStudio Console for documentation for R packages and functions by typing the name of the package/function preceded by ? 
+## If you get error messages, google them; nine times out of ten this has happened to somebody else already! If that ultimately gives no joy, you can contact me here: https://earlymodernnotes.wordpress.com/contact-me/
+
+
+## Re-use ####
+
+## Unless otherwise stated, any associated data files are licensed under a [Creative Commons Attribution 4.0 licence (CC BY-SA)](http://creativecommons.org/licenses/by/4.0/). The data I use comes from varied sources, so some datasets may differ from this, and if so, further information will be provided in code comments and the main text body.
+
+## Whatever the status of the data, this Rmarkdown file is licensed as CC BY-SA. 
+## Feel free to re-use, hack, chop and generally muck around with it.
 
 ```
 
@@ -130,7 +99,7 @@ library(kableExtra)
 # read the data in with read_csv (instead of read.csv)
 # nb: using na="NULL", for data imported from MySQL this converts NULL to NA
 
-obo <- read_csv("../data/obo_trials_20180402.csv", na="NULL" )
+obo <- read_csv("obo_trials_20180402.csv", na="NULL" )
 
 
 ```
