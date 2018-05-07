@@ -1,0 +1,391 @@
+---
+title: "MEAD Pauper Apprentices Philadelphia 1751-99"
+author: "Sharon Howard"
+date: "30 April 2018"
+output:
+  html_document:
+    css: /css/mindseye.css
+    self_contained: false
+    template: mindseye_template.html
+    theme: null
+    toc: yes
+    includes:
+      before_body: ../header.html
+      after_body: ../footer.html
+keywords: 
+- R
+- MEAD
+- ggplot
+ihmefilename: "201804_mead_1"
+datalicenceurl: creativecommons.org/licenses/by/4.0/
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, out.width="90%", fig.align='center', dpi=150)
+```
+
+
+```{r, include=FALSE}
+
+## About this file ####
+
+## This RMarkdown file has been used to generate visualisations and HTML posted at mindseye.sharonhoward.org
+
+## In order to reproduce the output you'll need, in addition to this file:
+## * R and RStudio installed on your computer (https://www.rstudio.com/)
+## * the R packages listed in the #load packages# section below
+## * the data file(s) in the #get data# section
+
+## Ensure that the data file is in the right location relative to this file
+## If you've downloaded and unzipped or cloned the repository from github, everything should already be in the right place, with the file/folder structure like this:
+
+## ihme-master/
+## ├─ data/   [data files folder]
+## ├─ posts/  [code files folder]
+## ├─ readme.md
+
+## A note on the YAML metadata block at the top of this file ##
+
+## This is primarily for any RStudio users who want to convert the Rmarkdown to HTML
+## in the output: options I specify a custom template, CSS and included files: these will cause RStudio's Knit function to fail!
+## So if you want to be able to Knit the file, you *must* delete the following lines:
+
+##     css: ../css/mindseye.css
+##     template: mindseye_template.html
+##     includes:
+##      before_body: ../header.html
+##      after_body: ../footer.html
+
+## and it's probably a good idea to delete these as well:
+##     theme: null
+##     self_contained: false [ymmv]
+
+## More on the YAML:
+
+## *ihmefilename* has been added for my own use. You can ignore it or delete it if you want.
+
+## If *datalicenceurl* is present it specifies a licence for the *data* that differs from the usual CC-BY-SA licence; there should be further information in the text body. 
+
+## Whatever the status of the data, this Rmarkdown file is licensed under a [Creative Commons Attribution 4.0 licence (CC BY-SA)](http://creativecommons.org/licenses/by/4.0/). 
+#Feel free to re-use, hack, chop and generally muck around with it.
+
+## I've commented the code quite a lot, to try and document what on earth I thought I was up to (this is for my benefit too, whenever I come back to the code later), but inevitably not everything will be commented in detail
+## Don't forget you can search in the Console for documentation for R packages and functions by typing the name of the package/function preceded by ? (eg ?mutate)
+
+```
+
+
+
+Introduction
+----------
+
+This post takes a look at an open dataset available through the [University of Pennsylvania's open access repository](https://repository.upenn.edu/). The dataset, [Indentures and Apprentices made by Philadelphia Overseers of the Poor, 1751-1799](https://repository.upenn.edu/mead/13/) (created by Billy G. Smith), is one of an interesting collection of datasets on 18th- and 19th-century history which I may return to in the future.
+
+>These are the indentures of apprentices of people (mostly children) in the Philadelphia Almshouse 1751-97. It includes everyone apprenticed to a master in Philadelphia or one of its suburbs -- the Northern Liberties or Southwark.
+
+Pauper (or parish) apprenticeship was used by parishes (well into the 19th century in England) to reduce the burden on parish poor rates by apprenticing out paupers' children. I've worked on a project that digitised [similar records for 18th-century London](https://www.londonlives.org/static/RA.jsp), so this is for me interesting for comparisons with the same system in north America. 
+
+It contains a number of variables we can easily explore and visualise:
+
+* year of apprenticeship
+* years apprenticed
+* apprentice gender
+* it doesn't contain the gender of masters, but does give their first names, so I can try out the R gender package to extract this information.
+* occupations to which the children were apprenticed (recorded as codes in the dataset, with an accompanying lookup table for occupation names)
+
+I'm going to focus on bar charts for this post. Even though they're very familiar, they can be used in a number of ways for different effects.
+
+```{r}
+#load r packages ####
+
+library(tidyverse)  # the core Tidy toolkit
+library(ggplot2)  # visualisations
+library(lubridate)  # nice date functions
+library(scales)  # additional scaling functions mainly for ggplot (eg %-ages)
+library(knitr)  # for kable (nicer tables)
+library(kableExtra)  
+library(gender) # predict gender from first names using historical data
+library(genderdata)  # gender data package (not on CRAN?)
+
+```
+
+```{r}
+
+# get data ####
+
+# source: University of Pennsylvania ScholarlyCommons, MEAD - Magazine of Early American Datasets
+# https://repository.upenn.edu/mead/13/
+# CC BY licence
+
+# before import made minor edits to column names (removed spaces etc), otherwise unchanged
+
+# read the data in with read_tsv
+map <- read_tsv("../data/mead_apprentices_philadelphia_201804.tsv" )
+
+# original column names, which include some info about the data
+# Apprentice Last Name - Apprentice 1st Name - Master Last Name - Master 1st Name - Occupation (see occupational codes) - Years Apprenticed - Year: 17-- (i.e. 81 = 1781) - Gender of Aprentice (Blank=male; 1 = female)
+
+# occupation codes and names
+# sourced from another MEAD dataset https://repository.upenn.edu/mead/5/ - it was missing from the apprentices dataset but I think this is likely to be correct data - looks plausible at any rate! but would check with creator before doing more serious research
+moc <- read_csv("../data/mead_occupational_codes_201804.csv")
+
+```
+
+
+
+```{r}
+# prepare data ####
+
+# year apprenticed is two digits in the data - convert it to full year
+# add decade
+# master_fname - for better matching with gender, use of sapply/strsplit to extract first word
+# add unique id to each row because its absence makes me twitchy (although unlikely to actually need it here)
+# convert gender apprentice coded column to words
+# add occupation names from codes data
+# group years apprenticed, as ordered factor - this ensures they're in the right order in plots
+# set the levels for the apprenticed years
+years_apprenticed_levels = c("<4", "4-7", "8-11", "12-15",">15")
+
+map_prep <- map %>% 
+  mutate_at(vars(contains("Name")), ~str_to_title(str_to_lower(.,) ) ) %>%  # this is unnecessary really but i hate looking at names in all caps
+  mutate(year_apprenticed = paste0(17, Year17),
+         decade_apprenticed = as.integer(year_apprenticed) - ( as.integer(year_apprenticed) %% 10),
+         years_apprenticed = factor(case_when(
+           YearsApprenticed < 4 ~ "<4",
+           YearsApprenticed > 15 ~ ">15",
+           YearsApprenticed > 11 ~ "12-15",
+           YearsApprenticed > 7 ~ "8-11",
+           TRUE ~ "4-7"
+         ), levels=years_apprenticed_levels),
+         GenderApprentice = ifelse(is.na(GenderApprentice), "male", "female"), 
+         master_fname = sapply(strsplit(MasterFirstName, "[ .]"), `[`,1) ,
+         uid = row_number() 
+         ) %>%
+left_join(moc, by="OccupationCode") %>%
+  mutate(Occupation = str_to_lower(Occupation))
+```
+
+```{r}
+# gender of master names
+# add 1790-1880 as year range for ipums gender_df; a bit late but shouldn't be way out - seems you have to add these as columns, can't just use strings in gender_df?
+
+map_master_name_gender <- map_prep %>%
+  select(master_fname) %>%
+  mutate(min_year= "1790", max_year = "1880") %>%
+  gender_df(name_col="master_fname", year_col=c("min_year", "max_year"), method="ipums")
+
+# a test with napp data - fewer matches but possibly cleaner; ipums does some dubious things like initials. hmmm.
+# map_master_name_gender2 <- map_prep %>%
+#  select(master_fname) %>%
+#  mutate(min_year= "1758", max_year = "1850") %>%
+#  gender_df(name_col="master_fname", year_col=c("min_year", "max_year"), method= "napp" )
+```
+
+
+ 
+```{r}
+mead_app <- map_prep %>%
+  left_join(map_master_name_gender %>% select(master_fname=name, GenderMaster=gender), by="master_fname" )  %>%
+# fix missed master names as much as possible; outstanding NAs include husband+wife, haven't decided what to do with these but there are only a few
+# use of ifelse-is.na to apply only to NA gender + case_when for multiple conditions
+  mutate(GenderMaster = ifelse(is.na(GenderMaster), 
+    case_when(
+      master_fname == "Eleiner" ~ "female",  
+      grepl("^(Geo|Jehoshaphat|Wm|Vollentine)$", master_fname ) ~ "male",
+      grepl("&", master_fname) ~ "mixed",
+      TRUE ~ "undetermined"
+    ), GenderMaster) # pretty sure Eleiner = Eleanor, Vollentine = Valentine
+  )  
+
+```
+
+First views
+------
+
+Here's a small slice of the data.
+
+```{r}
+kable(mead_app %>% slice(100:109) %>% select(year_apprenticed, decade_apprenticed, YearsApprenticed, GenderApprentice, GenderMaster, Occupation) %>% arrange(year_apprenticed) )
+```
+
+The first thing to look at is the chronological distribution. This appears remarkably uneven. At first sight, I wonder why there was apparently so much demand for pauper apprentices in the 1760s and later 1790s. But it could mean there are gaps in the records, so I'd need to find out more about the archives. For now let's press on, since this is an exploratory analysis, but this needs to be borne in mind.
+
+
+```{r}
+ggplot(mead_app, aes(x=year_apprenticed)) +
+  geom_bar() + 
+  theme(axis.text.x=element_text(angle=45,hjust=0.5,vjust=0.5)) +
+  labs(title="Annual counts of apprenticeships 1751-1799")
+```
+
+
+
+Gender of apprentices and masters
+------------
+
+The majority of both apprentices and masters are male. ``r paste0(round(mead_app %>% filter(GenderApprentice=="female") %>% tally() / tally(mead_app) *100, 1), "%") # 34.7 `` of apprentices are girls, and just ``r paste0(round(mead_app %>% filter(GenderMaster=="female") %>% tally() / tally(mead_app) *100, 1), "%") # 5.6; 2.5 mixed/unknown `` of masters are female. 
+
+The very low representation of women may in some ways be slightly misleading. As legal contracts, the legal doctrine of [coverture](https://en.wikipedia.org/wiki/Coverture) would mean that generally married women wouldn't enter into them alone. Although there were exceptions to this, it means that wives are under-represented even if in terms of actual work and training, it's very likely that the 'real' masters of girl apprentices were not usually the men who signed the indentures. 
+
+
+```{r, out.width="60%"}
+
+ggplot(mead_app %>% filter(grepl("male",GenderMaster) ) %>%  count(GenderMaster)
+       , aes(x="", y=n, fill=GenderMaster)) +
+  geom_bar(stat = "identity", position = "fill") +
+  #coord_polar(theta="y") +
+  scale_y_continuous(labels = percent_format())  +
+  scale_fill_brewer(palette="Set1") +
+  #theme(axis.x.ticks = element_blank()) +
+  labs(title="Gender of masters", x="", y="% of masters")
+```
+
+
+Even though female apprentices are in the minority, their numbers highlight how pauper apprenticeship differed from guild apprenticeships with which people are probably more familiar. For example, in the online database of [London livery companies 1400-1900](http://www.londonroll.org/search), 3691 of apprenticeships were female and 297040 male - just ``r paste0(round(3691/297040*100, 2), "%") # 1.24 `` were girls. In contrast, in a sample database more than 40% of [London's 18th-century pauper apprentices](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3175807/) were female. So this Philadelphia data looks quite similar in that respect.
+
+```{r, out.width="60%"}
+ggplot(mead_app %>% count(GenderApprentice)
+       , aes(fill=GenderApprentice, y=n, x="")) +
+  geom_bar(stat = "identity", position="fill") +
+   scale_y_continuous(labels = percent_format())  +
+  scale_fill_brewer(palette="Set1") +
+  labs(title="Gender of apprentices", x="", y="% of apprentices")
+```
+
+
+In a further gender dimension, nearly all the female masters in the data employed girl apprentices. Only ``r mead_app %>% filter(GenderApprentice=="male", GenderMaster=="female") %>% tally() %>% as.character() # 4 `` boys were apprenticed to women.
+
+
+```{r}
+ggplot(mead_app %>% filter(grepl("male",GenderMaster) ) %>% 
+         count(GenderMaster, GenderApprentice)
+       , aes(fill=GenderApprentice, y=n, x=GenderMaster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_brewer(palette="Set1") +
+  labs(title="Gender of masters and their apprentices", y="number of apprentices")
+```
+
+
+
+Years apprenticed
+----
+
+The variation in duration of apprenticeships is striking. The standard length of a craft apprenticeship in England was 7 years (I don't know if this was also the case in Pennsylvania) and this *is* the most common apprenticeship term in the dataset. But again, pauper apprenticeships differed from their guild counterparts. It was more usual for parish apprentices to be apprenticed until the age of 21, and they could be as young as 7 when apprenticed, so the actual term of an apprenticeship could vary, and around 14 years is quite possible. But even so, the apprenticeships of 20 years or more are surprising. Unfortunately, this data doesn't include the apprentices' ages, which would have been helpful here.
+
+```{r}
+ggplot(mead_app, aes(YearsApprenticed)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq(0,35, by=1)) +
+  labs(title="Histogram of length of apprenticeships")
+```
+
+I wondered if apprenticeship terms changed over the half century of the data, so I grouped them into 5 categories and by decade. (Bearing in mind that the numbers are much smaller for the 1750s, 70s and 80s.) I don't see any pattern there, but sometimes you just have to try things out even if the result is "meh". 
+
+
+```{r}
+ggplot(mead_app %>% count(decade_apprenticed, years_apprenticed), aes(x=decade_apprenticed, y=n, fill=years_apprenticed) ) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = percent_format()) +
+  scale_fill_brewer(palette="Set1") +
+  labs(y="% of apprenticeships", title="Proportional stacked chart of length of apprenticeships")
+  
+
+```
+
+```{r}
+pc_girls_7 <- mead_app %>% count(YearsApprenticed, GenderApprentice) %>% filter(YearsApprenticed==7) %>% add_tally() %>% mutate(pc = round(n/nn*100,2) ) %>% filter(GenderApprentice=="female") %>% select(pc)
+```
+
+
+However, I did get something more interesting by comparing apprenticeship terms for girls and boys. I like this type of "diverging" bar chart for comparing two groups - I think it can enable broad comparisons while retaining a sense of differences in scale. In this case, you can see clearly that the overall distribution for boys and girls is different - there is a much higher proportion of boys' apprenticeships in the 4-7 year category. 
+
+Perhaps this suggests that, even though they're pauper apprenticeships, there was *some* tendency for boys to be placed in apprenticeships that to some extent resembled the traditional craft apprenticeship. Of the children apprenticed for 7 years, only ``r paste0(pc_girls_7, "%") `` were girls, quite a bit lower than the percentage of girls overall.
+
+
+```{r}
+mead_app_summary_gender_yearsapp <-
+  mead_app %>%
+  count(GenderApprentice, years_apprenticed)
+ggplot(mead_app_summary_gender_yearsapp %>%
+         mutate(div_years = ifelse(GenderApprentice=="female", n*-1, n))
+       , aes( x=years_apprenticed, y=div_years, fill=GenderApprentice)  ) +
+  geom_bar(stat="identity",position="identity") +
+  coord_flip() + 
+  geom_hline(yintercept=0) +
+  scale_y_continuous(labels=abs)  +
+  scale_fill_brewer(palette="Set1") +
+  labs(y="number of apprenticeships", title="Gender and length of apprenticeships")
+
+```
+
+This stacked bar chart shows the proportions with more precision. It confirms the difference for the 4-7 year category, but also shows that girls made up ground in slightly longer apprenticeships, so over 4-11 year terms, the majority, it largely evens out. Girls are *slightly* more likely to be apprenticed for 12 years or more, but there's not much in it.
+
+Another possibility is that girls were being apprenticed at a younger age than boys, and so (if apprenticeships to the age of 21 were common) they'd tend to be apprenticed for longer. Again, though, this can't be tested because we don't have the apprentices' ages. 
+
+```{r}
+ggplot(mead_app_summary_gender_yearsapp, aes(fill=years_apprenticed, y=n, x=GenderApprentice)) +
+  geom_bar(stat = "identity", position = "fill")  +
+  scale_fill_brewer(palette="Set1") +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title="Gender and length of apprenticeships", y="percentage of apprentices")
+```
+
+
+
+Occupations
+-----
+
+There are ``r mead_app %>% count(Occupation) %>% count() %>% as.character() `` different occupations in the dataset. This bar chart (ordered to show most frequent to least) is too cramped to show much clearly, but highlights at least a couple of things. There's quite a long tail of occupations that appear only once or twice; really, for further analysis this data would need grouping into broader categories. There is also a large number of "unknowns". 
+
+Moreover, although occupations haven't been formally categorised, it looks as though they aren't verbatim transcriptions of the original documents either; as noted, they were coded in the dataset, and without further investigation it isn't clear exactly how the coding was created or used. People who made footwear could be described in a number of ways (shoemaker, cordwainer, cobbler, and even corviser (Latin)), and it seems these have been consolidated into one form here. "Housewife" seems slightly curious; I don't think I've ever seen it used as an occupation or status in English documents, so I'd want to know more about this.
+
+
+```{r}
+ggplot(mead_app %>% count(Occupation)
+       , aes(x=reorder(Occupation, n), y=n)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  labs(x="Occupations", y="count", title="Occupations of Apprenticeships")
+```
+
+For clarity and convenience, I limit the view to occupations which are listed at least 4 times. While I'd expect some divergence, I'm surprised that almost all the girls have been coded as 'housewife'. It confirms that I need to find out more about the data before I can draw further conclusions!
+
+```{r}
+ggplot(mead_app %>% select(Occupation, GenderApprentice) %>% add_count(Occupation) %>% count(Occupation, GenderApprentice, n) %>% filter(n>3), aes(x=reorder(Occupation, n), y=nn, fill=GenderApprentice)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  scale_fill_brewer(palette="Set1") +
+  labs(x="Occupations", y="count", title="Gender and most common occupations")
+```
+
+
+Afterthoughts
+----
+
+It's cool when you find open history data that's relevant to your own research interests. But sometimes it can be a bit frustrating too (this is *not* a criticism of data creators). Whether because of absences in the original records or other researchers' different priorities, it may not always contain all the information you'd like. Sometimes the processes that went into creating the data are unclear (less of a problem if you have contact information). Also, even though they may seem at first sight similar to records and data you know well, there are likely to be surprises and questions raised that show you can't assume close similarities.
+
+But even so, the exercise is likely to be thought-provoking and teach you something new. Even if you decide you can't use the data directly, it can give you new ideas for your own research. And the contrasting or parallel experiences may well turn out to add a valuable extra dimension to your work.
+
+
+
+Further reading and resources
+----
+
+Data:
+
+* [apprentices data](/data/mead_apprentices_philadelphia_201804.tsv)
+* [occupation codes](/data/mead_occupational_codes_201804.csv)
+* [RMarkdown](/posts/201804_mead_1.Rmd)
+
+The dataset and code will also be available at the site's [Github repository](https://github.com/sharonhoward/ihme_data) shortly.
+
+Original dataset: [Smith, Billy G., "INDENTURES & Apprentices MADE BY Philadelphia OVERSEERS OF THE POOR, 1751-1799"](https://repository.upenn.edu/mead/13/), Philadelphia, PA: McNeil Center for Early American Studies [distributor], 2015. 
+
+[Alysa Levene, Parish apprenticeship and the old poor law in London](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3175807/)
+
+[Billy G Smith, The "Lower Sort": Philadelphia's Laboring People, 1750-1800](https://books.google.co.uk/books/about/The_Lower_Sort.html?id=c-lidWg5YDQC&redir_esc=y)
+
+Inspirations and provocations for bar charts:
+
+* [bring on the bar chart](http://www.storytellingwithdata.com/blog/2018/3/9/bring-on-the-bar-charts)
+* [The case against diverging stacked bars](https://blog.datawrapper.de/divergingbars/) (a slightly different type of diverging bar chart, but still an interesting read)
