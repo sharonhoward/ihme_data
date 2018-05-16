@@ -1,0 +1,300 @@
+---
+title: "boxplots"
+author: "Sharon Howard"
+date: "16 May 2018"
+output:
+  html_document:
+    self_contained: false
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+
+## This RMarkdown code has been used to generate material posted at mindseye.sharonhoward.org
+
+## About this file ####
+
+## This is an *RMarkdown* file. It's written in a mix of markdown and R code.
+## In order to reproduce the output you'll need, in addition to the file itself:
+## * R and RStudio installed on your computer (https://www.rstudio.com/)
+## * R packages installed which are listed in the #load R packages# section below. Usually you'll be able to install these from within RStudio; if not, there'll be extra instructions 
+## * the data file(s) in the #get data# section; most often these will be in the same folder as the code file, but they might sometimes be located elsewhere on the internet and the code will include instructions to fetch/download them
+
+## If you have no idea what the above means but want to learn, start with the guides at https://www.rstudio.com 
+
+## There is also a nice suite of R tutorials designed for historians at https://programminghistorian.org/ eg https://programminghistorian.org/lessons/data_wrangling_and_management_in_R
+
+## I've commented the code quite a lot, to try and document what on earth I thought I was up to (this is for my benefit too, whenever I come back to the code later), but inevitably not everything will be commented in detail
+## Don't forget you can search in the RStudio Console for documentation for R packages and functions by typing the name of the package/function preceded by ? 
+## If you get error messages, google them; nine times out of ten this has happened to somebody else already! If that ultimately gives no joy, you can contact me here: https://earlymodernnotes.wordpress.com/contact-me/
+
+## Re-use ####
+
+## Unless otherwise stated, any associated data files are licensed under a [Creative Commons Attribution 4.0 licence (CC BY-SA)](http://creativecommons.org/licenses/by/4.0/). The data I use comes from varied sources, so some datasets may differ from this, and if so, further information will be provided in code comments and the main text body.
+
+## Whatever the status of the data, this Rmarkdown file is licensed as CC BY-SA. 
+## Feel free to re-use, hack, chop and generally muck around with it.
+
+```
+
+
+Height data for female prisoners in the 19th century
+=======
+
+The [Digital Panopticon](https://www.digitalpanopticon.org) has brought together massive amounts of data about British prisoners and convicts in the long 19th century, including heights for many thousands of individuals. Adult height is strongly influenced by environmental factors in childhood, one of the most important being nutrition. So, if you have enough of it, height data for past populations is extremely informative about standards of living. 
+
+I blogged about this data for female prisoners for Women's History Month in March, and you can read [that post](https://earlymodernnotes.wordpress.com/2018/03/17/whm18-womens-heights-in-the-digital-panopticon/) for more of the historical discussion.
+
+I decided to re-post a shorter version over here to share the code and focus on the use of two types of particularly important statistical visualisations: box plots and histograms. 
+
+
+The data
+----
+
+The four datasets are subsets of [Digital Panopticon](https://www.digitalpanopticon.org) datasets. 
+
+* [HCR](https://www.digitalpanopticon.org/England_and_Wales_Criminal_Registers_1791-1892), Home Office Criminal Registers 1790-1801, prisoners held in Newgate awaiting trial (1226 heights total, 1061 aged over 19)
+* [CIN](https://www.digitalpanopticon.org/Convict_Indents_(Ship_and_Arrival_Registers)_1788-1868), Convict Indents 1820-1853, convicts transported to Australia (17183 heights, 14181 over 19)
+* [PLF](https://www.digitalpanopticon.org/UK_Licences_for_the_Parole_of_Convicts_1853-1925), Female prison licences 1853-1884, female convicts sentenced to penal servitude (571 heights, 535 over 19)
+* [RHC](https://www.digitalpanopticon.org/Metropolitan_Police_Register_of_Habitual_Criminals_1881-1925), Registers of Habitual Criminals 1881-1925, recidivists who were under police supervision following release from prison (12599 heights, 12118 over 19)
+
+For each dataset, I included only female prisoners with a year of birth as well as a height, and then filtered out children and teenagers so we have adult heights only. It can't quite be assumed that the datasets contain only unique individuals, so the results here are very much provisional (don't cite them!). My main interest is in exploration of the data.
+
+
+```{r}
+# packages ####
+
+library(tidyverse)
+library(ggplot2)
+library(scales)
+
+```
+
+
+```{r}
+# get data ####
+
+# in each case this is summary data derived from the full DP datasets, including only height, age/yob, event year. HCR, PLF and RHC are (or shortly will be) downloadable as open data; there's more info about this in the links above. CIN is not yet open.
+
+# in the original sources heights were recorded in feet and inches (to quarters of an inch), which have been converted to inches and decimal points.
+
+# HCR: home office criminal registers 1790-1801 - defendants awaiting trial
+# 1226 rows, 1061 over 19 
+# possible that a few women appear more than once
+
+hcr <- read_csv("bp/hcr_heights_20180316.csv")
+
+hcra <- hcr %>% 
+  mutate(
+          decade = h_year - (h_year %% 10), 
+          decade_birth = year_birth - (year_birth %% 10),
+          dataset="hcr" 
+          ) %>% 
+  filter(age > 19)
+
+# CIN: Oxley convict indents 1820-1853 - transported convicts
+# 17183 rows total, 14181 over 19 
+# unlikely to be more than a very small handful of repeat appearances - it was very rare to be transported more than once!
+
+cin <- read_csv("bp/cin_heights_20180314.csv")
+
+cina <- cin %>% 
+  mutate(
+    decade = h_year - (h_year %% 10), 
+    decade_birth = year_birth - (year_birth %% 10), 
+    dataset = "cin" 
+  ) %>% 
+  filter(age > 19)
+
+# PLF: prison licences 1853-1884
+# 571 rows, 535 over 19
+# repeat offenders shouldn't be an issue as files had already been amalgamated.
+
+plf <- read_csv("bp/plf_heights_20180314.csv")
+
+plfa <- plf %>% 
+  mutate(
+    decade = h_year - (h_year %% 10), 
+    decade_birth = year_birth - (year_birth %% 10), 
+    dataset="plf"  
+  ) %>% 
+  select(id, h_year,age,year_birth,height,decade,decade_birth, dataset) %>% 
+  filter(age > 19)
+
+# RHC: register of habitual criminals 1881-1925
+# 12599, 12118 over 19
+# likely to be some repeat offenders
+
+rhc <- read_csv("bp/rhc_heights_20180316.csv")
+
+rhca <- rhc %>% 
+  mutate(
+    decade = h_year - (h_year %% 10), 
+    decade_birth = year_birth - (year_birth %% 10), 
+    dataset="rhc" 
+  ) %>% 
+  filter(age > 19)
+
+
+# stack 'em up (bind_rows = sql union)
+
+hcr_cin_plf_rhc <- bind_rows(hcra, cina, plfa, rhca)
+
+```
+
+The visualisations
+---------
+
+A **box plot**, or box and whisker plot, is a really concentrated way of visualising what statisticians call the "five figure summary"" of a dataset: 
+
+1. the median; 
+2. upper quartile (halfway between the median and the maximum value); 
+3. lower quartile (halfway between the median and minimum value); 
+4. minimum value; 
+5. maximum value
+
+Here's a diagram:
+
+![a boxplot](https://earlymodernnotes.files.wordpress.com/2018/03/elements_of_a_boxplot_en_wikimedia.png)
+
+The thick green middle bar marks the **median** value.  The two blue lines parallel to that (aka 'hinges') show the **upper and lower quartiles**.  The pink horizontal lines extending from the box are the **whiskers**. In this version of a box plot, the whiskers don't necessarily extend right to the minimum and maximum values. Instead, they're calculated to exclude **outliers** which are then plotted as individual dots beyond the end of the whiskers.
+
+So what's the point of all this? Imagine two datasets: one contains the values ``4,4,4,4,4,4,4,4`` and the other ``1,3,3,4,4,4,6,7``. The two datasets have the same averages, but the distribution of the values is very different. A boxplot is useful for looking more closely at such variations within a dataset, or for comparing different datasets, which might look pretty much the same if you only considered averages.
+
+**Histograms** are less complex; they're a type of bar chart that's particularly useful for visualising the distribution of a dataset.
+
+
+First views of the datasets
+--------------
+
+The first thing I look for is incongruities and impossible numbers that might suggest problems with the data, one of the great benefits of exploratory data visualisation. If we see people over 7 feet or under 3 feet tall, or born in 1650, that's very unlikely to be correct. It should be remembered that minor data errors are par for the course and if it only affects very tiny numbers, I'll just filter them out in subsequent analysis. If there are a lot of issues, though, that can suggest bigger problems with the reliability of the data.
+
+A trickier problem is values that might or might not be errors. In the 19th century women over the height of 6 feet, for example, are very rare indeed, but they do exist so it can't be assumed that's wrong.
+
+
+### HCR
+  
+```{r}
+# nb use of varwidth to vary width of box according to relative size of group within dataset
+ggplot(hcra, aes(factor(decade_birth), height)) +
+  geom_boxplot(varwidth = TRUE, fill="#D55E00", alpha=0.5, outlier.size = 0.7, outlier.alpha = 1) +
+  scale_y_continuous(breaks=seq(36,84,by=3)) +
+  labs(y="height (inches)", x="birth decade", title="Women's heights in HCR by birth decade")
+```
+
+If you compare this HCR plot to the following ones, you'll see that it has more extreme outliers, and overall the boxes are more asymmetrical (this appears to a lesser extent with PLF). We'll come back to this.
+
+### CIN
+
+```{r}
+ggplot(cina, aes(factor(decade_birth), height)) +
+  geom_boxplot(varwidth = TRUE, fill="#D55E00", alpha=0.5, outlier.size = 0.7, outlier.alpha = 1) +
+  scale_y_continuous(breaks=seq(48, 74,by=2)) +
+  labs(y="height (inches)", x="birth decade", title="Women's heights in CIN by birth decade")
+
+```
+
+
+### PLF
+
+```{r}
+ggplot(plfa, aes(factor(decade_birth), height)) +
+  geom_boxplot(varwidth = TRUE, fill="#D55E00", alpha=0.5, outlier.size = 0.7, outlier.alpha = 1) +
+  scale_y_continuous(breaks=seq(48,68,by=2))  +
+  labs(y="height (inches)", x="birth decade", title="Women's heights in PLF by birth decade")
+```
+
+
+### RHC
+
+```{r}
+ggplot(rhca, aes(factor(decade_birth), height)) +
+  geom_boxplot(varwidth = TRUE, fill="#D55E00", alpha=0.5, outlier.size = 0.7, outlier.alpha = 1) +
+  scale_y_continuous(breaks=seq(48,74,by=2)) +
+  labs(y="height (inches)", x="birth decade", title="Women's heights in RHC by birth decade")
+```
+
+
+
+Put them all together!
+----
+
+This filters out women born before 1750 and after 1899, because the numbers were very small, and extreme outliers. I added a guideline at the median for the 1820s (the mid-point), which I think makes it easier to see the trends (I discuss what I think those mean at more length in the earlier blog post). 
+
+Ta da! Not going to lie, I was pretty pleased with this.
+
+```{r}
+ggplot(hcr_cin_plf_rhc %>% 
+    filter(year_birth > 1749, year_birth < 1900, height > 40, height < 80)
+       , aes(factor(decade_birth), height)) +
+  geom_boxplot(varwidth = TRUE, fill="#D55E00", alpha=0.5, outlier.size = 0.5, outlier.alpha = 1) +
+  labs(y="height (inches)", x="birth decade", title="Women's heights by birth decade, 1750-1899") +
+  scale_y_continuous(breaks=seq(40,76,by=2)) +
+  geom_hline(aes(yintercept=61), colour="#990000", linetype=2)
+```
+
+
+Problems
+----
+
+But it's time to come back and take another look at the HCR data. I'm going to switch to histograms, and these show more clearly that there's something up. A 'normal' height distribution in a population should look like a "bell curve" - quite tightly and symmetrically clustered around the average. (In fact, height data seems to be quite often used in examples of typical normal distributions.) CIN and RHC are close.
+
+```{r}
+ggplot(hcr_cin_plf_rhc %>% filter(dataset %in% c("cin", "rhc"))
+       , aes(height)) +
+  geom_histogram(binwidth=1) +
+  facet_grid(~dataset) +
+  scale_x_continuous(breaks=seq(48,72,by=2)) +
+  labs(y="", title="Heights distribution for women in CIN and RHC")
+```
+
+PLF isn't quite as good, though the outliers are minimal.
+
+```{r}
+ggplot(plfa, aes(height)) +
+  geom_histogram(binwidth=1) +
+  labs(y="", title="Heights distribution for women in PLF") +
+  scale_x_continuous(breaks=seq(40,76,by=2))
+```
+
+But HCR is extremely problematic. 
+
+```{r}
+ggplot(hcra, aes(height)) +
+  geom_histogram(binwidth=1) +
+  labs(y="", title="Heights distribution for women in HCR") +
+  scale_x_continuous(breaks=seq(36,84,by=2))
+```
+
+Now we can see it's not just the outliers that are the problem: the distribution is the wrong shape. It has a [multimodal distribution](https://en.wikipedia.org/wiki/Multimodal_distribution) - that's to say, it has several peaks instead of being a pyramid shape.
+
+What could be causing this? The first thing I'll need to do is go back to the data and see if there are problems with the transcriptions or the extraction from transcription to heights - the spike at 60 inches (5 feet) could suggest that data has got truncated. But if that seems OK, it might mean that the heights were inaccurately recorded in the first place. Then we really have a problem...
+
+[Data on Github](https://github.com/sharonhoward/ihme_data)
+
+
+Further resources
+------
+
+[John Canning](http://statisticsforhumanities.net/book/), *Statistics for the Humanities*, especially chapter 3.
+
+[Introduction to Statistics: Box plots](https://courses.lumenlearning.com/introstats1/chapter/box-plots/)
+
+[The Normal Distribution](http://www.usablestats.com/lessons/normal)
+
+
+[Wikipedia: Box plot](https://en.wikipedia.org/wiki/Box_plot)
+
+[Constructing box and whisker plots](https://www.statcan.gc.ca/edu/power-pouvoir/ch12/5214889-eng.htm)
+
+[Box Plot: Display of Distribution](http://www.physics.csbsju.edu/stats/box2.html)
+
+[How to Read and Use a Box-and-Whisker Plot](https://flowingdata.com/2008/02/15/how-to-read-and-use-a-box-and-whisker-plot/)
+
+[Creating plots in R using ggplot2: boxplots](http://t-redactyl.io/blog/2016/04/creating-plots-in-r-using-ggplot2-part-10-boxplots.html)
+
