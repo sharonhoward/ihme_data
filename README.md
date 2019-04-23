@@ -2,11 +2,13 @@
 
 This repository holds data and code for posts at my history data blog [In Her Mind's Eye](http://mindseye.sharonhoward.org/)
 
-The code files will usually be in the form of R Notebooks, Jupyter notebooks or similar. These are copies of the files that were used to create posts on the website, and my aim is that you should be able to download/clone the repository to your computer and run the code on the appropriate software with minimal fuss. 
+The code files will usually be in the form of R Notebooks, but in the future there may be other formats such as Jupyter notebooks. These are copies of the files that were used to create posts on the website, and my aim is that you should be able to download/clone the repository to your computer and run the code on the appropriate software with minimal fuss. 
 
-But be aware that software does change over time, which can cause code to become out of date and fail (and I won't be making any attempt to keep old code up to date). Also, the files have been created using a Mac and not tested on any other OS (although all these tools are cross-platform and the files in plain text for as much portability as possible). So the files are provided here with **no guarantee** that they will, in fact, work.
+But be aware that software does change over time, which can cause code to become out of date and fail (and I won't be making any attempt to keep old code up to date). Also, the files have been created using a Mac and not tested on any other OS (although all these tools are cross-platform and the files in plain text for as much portability as possible). So the files are provided here with **no guarantee** that they will, in fact, work as-is.
 
-Specific tools and other requirements will be noted in each code file, but it is assumed that you can work out how to use R and [RStudio](https://www.rstudio.com/), Python and [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/), etc, as well as common data file formats (eg CSV/TSV) and [Markdown](https://daringfireball.net/projects/markdown/). If you've never used any of these things, they're all covered in introductory tutorials at the [Programming Historian](https://programminghistorian.org/lessons/). 
+However, there is a good chance that most issues can be fixed. Check the documentation for specific functions. Read error messages carefully; they can be quite informative. Otherwise, try copy & pasting them into Google; in my experience, this will turn up an answer more often than not.
+
+Specific tools and other requirements will be noted in each code file, but it is assumed that you can work out how to use R and [RStudio](https://www.rstudio.com/) (or Python and [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/), etc), as well as common data file formats (eg CSV/TSV) and [Markdown](https://daringfireball.net/projects/markdown/). If you've never used any of these things, they're all covered in introductory tutorials at the [Programming Historian](https://programminghistorian.org/lessons/). 
 
 Further information about specific datasets (source, technical info, licensing, etc) will be provided in the code files that use them. [This page](http://mindseye.sharonhoward.org/data/) also shows at a glance where individual data files are in use. 
 
